@@ -149,6 +149,7 @@
           <input id="dt-in-token" type="text" placeholder="paste your CAL_TOKEN value" />
         </div>
         <span class="dt-sync-link" id="dt-sync-link">Loading…</span>
+        <div id="dt-feed-status" style="font-size:11.5px; margin:4px 0 8px 0; min-height:16px;"></div>
         <button class="dt-btn dt-btn-ghost" id="dt-copy-link">Copy subscription link</button>
         <a class="dt-btn" id="dt-open-calendar" style="display:block; text-align:center; text-decoration:none; margin-top:8px;">Open in Calendar app</a>
       </div>
@@ -357,6 +358,46 @@
     if (localStorage.getItem('dt-cal-token')) {
       document.getElementById('dt-token-field').style.display = 'block';
     }
+    verifyFeed(httpsUrl);
+  }
+
+  let verifyTimer = null;
+  function verifyFeed(httpsUrl) {
+    const statusEl = document.getElementById('dt-feed-status');
+    const openBtn = document.getElementById('dt-open-calendar');
+    statusEl.textContent = 'Checking feed…';
+    statusEl.style.color = 'var(--muted)';
+    clearTimeout(verifyTimer);
+    verifyTimer = setTimeout(async () => {
+      try {
+        const res = await fetch(httpsUrl, { cache: 'no-store' });
+        if (res.ok) {
+          const text = await res.text();
+          if (text.startsWith('BEGIN:VCALENDAR')) {
+            statusEl.textContent = '✓ Feed is working — safe to subscribe';
+            statusEl.style.color = 'var(--teal)';
+            openBtn.style.opacity = '1';
+            openBtn.style.pointerEvents = 'auto';
+          } else {
+            statusEl.textContent = '⚠ Feed responded but content looks wrong';
+            statusEl.style.color = 'var(--red)';
+          }
+        } else if (res.status === 403) {
+          statusEl.textContent = '✗ 403 Forbidden — your token is missing or wrong. Fill in "Feed token" above with your exact CAL_TOKEN value.';
+          statusEl.style.color = 'var(--red)';
+          openBtn.style.opacity = '0.5';
+          openBtn.style.pointerEvents = 'none';
+        } else {
+          statusEl.textContent = `✗ Feed error (HTTP ${res.status}) — something's wrong on the server side.`;
+          statusEl.style.color = 'var(--red)';
+          openBtn.style.opacity = '0.5';
+          openBtn.style.pointerEvents = 'none';
+        }
+      } catch (e) {
+        statusEl.textContent = '✗ Could not reach the feed — check your connection.';
+        statusEl.style.color = 'var(--red)';
+      }
+    }, 400);
   }
 
   // Token field: remember locally so you don't retype it

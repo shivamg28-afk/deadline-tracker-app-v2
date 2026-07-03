@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Deadline Tracker</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  :root {
+    --ink: #16211d;
+    --paper: #f3f4ef;
+    --paper-raised: #ffffff;
+    --teal: #1f5c52;
+    --teal-dim: #dce8e4;
+    --amber: #e0932e;
+    --amber-dim: #f7e6c8;
+    --red: #b6482f;
+    --red-dim: #f4ddd5;
+    --green: #3f7d4a;
+    --green-dim: #dcecdd;
+    --line: #d9d9d0;
+    --muted: #6b756f;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); font-family: 'IBM Plex Sans', sans-serif; color: var(--ink); }
+
+  #dt-root { padding: 28px; max-width: 980px; margin: 0 auto; }
+  #dt-root h1 { font-family: 'Fraunces', serif; font-weight: 600; font-size: 30px; margin: 0 0 4px 0; }
+  #dt-root .subhead { color: var(--muted); font-size: 13.5px; margin: 0 0 24px 0; }
+
+  .dt-layout { display: grid; grid-template-columns: 300px 1fr; gap: 20px; }
+  .dt-row-2 { display: flex; gap: 8px; }
+  .dt-row-2 .dt-field { flex: 1; margin-bottom: 0; }
+
+  @media (max-width: 720px) {
+    #dt-root { padding: 16px; }
+    #dt-root h1 { font-size: 24px; }
+    .dt-layout { grid-template-columns: 1fr; gap: 16px; }
+    .dt-panel { padding: 14px; }
+    .dt-stat-row { flex-wrap: wrap; }
+    .dt-stat { min-width: calc(50% - 5px); }
+    .dt-toolbar { flex-direction: column; }
+  }
+
+  .dt-panel { background: var(--paper-raised); border: 1px solid var(--line); border-radius: 6px; padding: 18px; }
+  .dt-panel h2 { font-family: 'Fraunces', serif; font-size: 15px; font-weight: 600; margin: 0 0 14px 0; text-transform: uppercase; letter-spacing: 0.04em; color: var(--teal); }
+
+  .dt-field { margin-bottom: 12px; }
+  .dt-field label { display: block; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 5px; }
+  .dt-field input, .dt-field select {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px;
+    font-family: 'IBM Plex Sans', sans-serif; font-size: 14px; background: var(--paper); color: var(--ink);
+  }
+  .dt-field input:focus, .dt-field select:focus { outline: none; border-color: var(--teal); }
+
+  .dt-btn { width: 100%; padding: 10px; border: none; border-radius: 4px; background: var(--teal); color: white; font-weight: 600; font-size: 13.5px; cursor: pointer; margin-top: 4px; }
+  .dt-btn:hover { background: #17453d; }
+  .dt-btn-ghost { background: transparent; border: 1px solid var(--line); color: var(--ink); font-weight: 500; }
+  .dt-btn-ghost:hover { border-color: var(--teal); color: var(--teal); background: transparent; }
+
+  .dt-group-title { font-family: 'IBM Plex Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin: 18px 0 8px 0; }
+  .dt-group-title:first-child { margin-top: 0; }
+
+  .dt-task { display: flex; align-items: flex-start; gap: 12px; background: var(--paper-raised); border: 1px solid var(--line); border-left: 4px solid var(--muted); border-radius: 5px; padding: 11px 13px; margin-bottom: 8px; }
+  .dt-task.urgent { border-left-color: var(--red); }
+  .dt-task.soon { border-left-color: var(--amber); }
+  .dt-task.later { border-left-color: var(--teal); }
+  .dt-task.done { opacity: 0.55; }
+  .dt-task.done .dt-task-name { text-decoration: line-through; }
+
+  .dt-check { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--teal); cursor: pointer; flex-shrink: 0; }
+  .dt-task-body { flex: 1; min-width: 0; }
+  .dt-task-name { font-weight: 600; font-size: 14px; margin-bottom: 3px; }
+  .dt-task-meta { font-size: 12px; color: var(--muted); display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+  .dt-society-tag { display: inline-block; background: var(--teal-dim); color: var(--teal); padding: 1px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .dt-repeat-tag { display: inline-block; background: var(--amber-dim); color: #7a4e12; padding: 1px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .dt-priority-tag { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .dt-priority-tag.prio-high { background: var(--red-dim); color: var(--red); }
+  .dt-priority-tag.prio-med { background: var(--amber-dim); color: #7a4e12; }
+  .dt-priority-tag.prio-low { background: var(--green-dim); color: var(--green); }
+  .dt-priority-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .prio-high .dt-priority-dot { background: var(--red); }
+  .prio-med .dt-priority-dot { background: var(--amber); }
+  .prio-low .dt-priority-dot { background: var(--green); }
+
+  .dt-task-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .dt-icon-btn { border: 1px solid var(--line); background: var(--paper); border-radius: 4px; width: 30px; height: 30px; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; color: var(--muted); }
+  .dt-icon-btn:hover { border-color: var(--teal); color: var(--teal); }
+
+  .dt-empty { text-align: center; color: var(--muted); font-size: 13px; padding: 30px 10px; }
+  .dt-toolbar { display: flex; gap: 8px; margin-bottom: 14px; }
+  .dt-toolbar select { flex: 1; }
+
+  .dt-stat-row { display: flex; gap: 10px; margin-bottom: 18px; }
+  .dt-stat { flex: 1; background: var(--paper-raised); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; text-align: center; }
+  .dt-stat .num { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 600; }
+  .dt-stat .lbl { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+  .dt-sync-link { display: block; word-break: break-all; font-family: 'IBM Plex Mono', monospace; font-size: 11px; background: var(--paper); border: 1px solid var(--line); border-radius: 4px; padding: 8px; margin: 8px 0; color: var(--teal); }
+  .dt-status { font-size: 11.5px; color: var(--muted); margin-top: 8px; min-height: 14px; }
+</style>
+</head>
+<body>
+<div id="dt-root">
+  <h1>Deadline Tracker</h1>
+  <p class="subhead">Hosted version — syncs live with Apple Calendar, works in any real browser.</p>
+
+  <div class="dt-stat-row" id="dt-stats"></div>
+
+  <div class="dt-layout">
+    <div class="dt-panel">
+      <h2>New task</h2>
+      <div class="dt-field"><label>Task</label><input id="dt-in-name" type="text" placeholder="e.g. Submit LinkedIn post draft" /></div>
+      <div class="dt-field"><label>Society / group</label><input id="dt-in-society" type="text" list="dt-society-list" placeholder="e.g. Coca-Cola Mantra Challenge" /><datalist id="dt-society-list"></datalist></div>
+      <div class="dt-row-2" style="margin-bottom:12px;">
+        <div class="dt-field"><label>Deadline</label><input id="dt-in-deadline" type="date" /></div>
+        <div class="dt-field"><label>Time (optional)</label><input id="dt-in-time" type="time" /></div>
+      </div>
+      <div class="dt-field">
+        <label>Priority</label>
+        <select id="dt-in-priority"><option value="HIGH">High</option><option value="MED" selected>Medium</option><option value="LOW">Low</option></select>
+      </div>
+      <div class="dt-field">
+        <label>Repeat</label>
+        <select id="dt-in-repeat">
+          <option value="">Doesn't repeat</option>
+          <option value="DAILY">Daily</option>
+          <option value="WEEKLY">Weekly</option>
+          <option value="MONTHLY">Monthly</option>
+          <option value="YEARLY">Yearly</option>
+        </select>
+      </div>
+      <div class="dt-row-2" id="dt-repeat-extra" style="display:none; margin-bottom:12px;">
+        <div class="dt-field"><label>Every</label><input id="dt-in-interval" type="number" min="1" value="1" /></div>
+        <div class="dt-field"><label>Ends (optional)</label><input id="dt-in-until" type="date" /></div>
+      </div>
+      <button class="dt-btn" id="dt-add-btn">Add task</button>
+      <div class="dt-status" id="dt-status"></div>
+
+      <div style="margin-top:22px; padding-top:16px; border-top:1px solid var(--line);">
+        <h2>Apple Calendar sync</h2>
+        <p style="font-size:12px; color:var(--muted); margin:0 0 6px 0;">
+          Subscribe once — new tasks and completions sync automatically. In Calendar app: Settings → Accounts → Add Account → Other → Add Subscribed Calendar, and paste this link (or just tap "Open in Calendar" on your iPhone).
+        </p>
+        <div class="dt-field" id="dt-token-field" style="display:none;">
+          <label>Feed token (if you set CAL_TOKEN)</label>
+          <input id="dt-in-token" type="text" placeholder="paste your CAL_TOKEN value" />
+        </div>
+        <span class="dt-sync-link" id="dt-sync-link">Loading…</span>
+        <button class="dt-btn dt-btn-ghost" id="dt-copy-link">Copy subscription link</button>
+        <a class="dt-btn" id="dt-open-calendar" style="display:block; text-align:center; text-decoration:none; margin-top:8px;">Open in Calendar app</a>
+      </div>
+    </div>
+
+    <div class="dt-panel">
+      <div class="dt-toolbar">
+        <select id="dt-filter-society"><option value="">All societies</option></select>
+        <select id="dt-filter-priority"><option value="">All priorities</option><option value="HIGH">High</option><option value="MED">Medium</option><option value="LOW">Low</option></select>
+        <select id="dt-filter-status"><option value="">All status</option><option value="pending">Pending</option><option value="done">Completed</option></select>
+      </div>
+      <div id="dt-task-list"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  let tasks = [];
+
+  function uid() { return 't' + Date.now() + Math.random().toString(36).slice(2, 8); }
+
+  async function loadTasks() {
+    setStatus('Loading…');
+    try {
+      const res = await fetch('/api/tasks');
+      tasks = await res.json();
+      setStatus('');
+    } catch (e) {
+      setStatus('Could not load tasks — check your connection.');
+      tasks = [];
+    }
+    render();
+  }
+
+  async function saveTasks() {
+    setStatus('Saving…');
+    try {
+      await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(tasks)
+      });
+      setStatus('Saved.');
+      setTimeout(() => setStatus(''), 1200);
+    } catch (e) {
+      setStatus('Save failed — check your connection.');
+    }
+  }
+
+  function setStatus(msg) {
+    document.getElementById('dt-status').textContent = msg;
+  }
+
+  function daysUntil(dateStr) {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const d = new Date(dateStr + 'T00:00:00');
+    return Math.round((d - today) / 86400000);
+  }
+  function taskDateTime(t) { return new Date(t.deadline + 'T' + (t.time ? t.time : '23:59') + ':00'); }
+  function isOverdue(t) { if (t.done) return false; return taskDateTime(t).getTime() < Date.now(); }
+  function urgencyClass(t) {
+    if (t.done) return '';
+    if (isOverdue(t)) return 'urgent';
+    const diff = daysUntil(t.deadline);
+    if (diff <= 2) return 'urgent';
+    if (diff <= 7) return 'soon';
+    return 'later';
+  }
+  function fmtTime12h(timeStr) {
+    const [h, m] = timeStr.split(':').map(Number);
+    const period = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return `${h12}:${String(m).padStart(2,'0')} ${period}`;
+  }
+  function fmtDate(dateStr, timeStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    const dateLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return timeStr ? `${dateLabel} · ${fmtTime12h(timeStr)}` : dateLabel;
+  }
+  function relLabel(t) {
+    if (t.done) return 'Completed';
+    const overdue = isOverdue(t);
+    const diff = daysUntil(t.deadline);
+    if (overdue) return diff === 0 ? 'Overdue today' : `${Math.abs(diff)}d overdue`;
+    if (diff === 0) return t.time ? `Due today, ${fmtTime12h(t.time)}` : 'Due today';
+    if (diff === 1) return t.time ? `Due tomorrow, ${fmtTime12h(t.time)}` : 'Due tomorrow';
+    return `Due in ${diff}d`;
+  }
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+
+  const PRIORITY_RANK = { HIGH: 0, MED: 1, LOW: 2 };
+  const PRIORITY_LABEL = { HIGH: 'High', MED: 'Medium', LOW: 'Low' };
+  const PRIORITY_CLASS = { HIGH: 'prio-high', MED: 'prio-med', LOW: 'prio-low' };
+  function priorityTag(p) {
+    const key = p || 'MED';
+    return `<span class="dt-priority-tag ${PRIORITY_CLASS[key]}"><span class="dt-priority-dot"></span>${PRIORITY_LABEL[key]}</span>`;
+  }
+  function repeatTag(r) {
+    if (!r || !r.freq) return '';
+    const unit = { DAILY: 'day', WEEKLY: 'week', MONTHLY: 'month', YEARLY: 'year' }[r.freq];
+    const label = (r.interval && r.interval > 1) ? `Every ${r.interval} ${unit}s` : `Every ${unit}`;
+    return `<span class="dt-repeat-tag">&#8635; ${label}</span>`;
+  }
+
+  function updateSocietyOptions() {
+    const societies = [...new Set(tasks.map(t => t.society).filter(Boolean))].sort();
+    document.getElementById('dt-society-list').innerHTML = societies.map(s => `<option value="${escapeHtml(s)}">`).join('');
+    const sel = document.getElementById('dt-filter-society');
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">All societies</option>' + societies.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+    sel.value = societies.includes(prev) ? prev : '';
+  }
+
+  function renderStats() {
+    const total = tasks.length;
+    const done = tasks.filter(t => t.done).length;
+    const overdue = tasks.filter(t => isOverdue(t)).length;
+    const thisWeek = tasks.filter(t => !t.done && !isOverdue(t) && daysUntil(t.deadline) >= 0 && daysUntil(t.deadline) <= 7).length;
+    document.getElementById('dt-stats').innerHTML = `
+      <div class="dt-stat"><div class="num">${total}</div><div class="lbl">Total</div></div>
+      <div class="dt-stat"><div class="num">${done}</div><div class="lbl">Completed</div></div>
+      <div class="dt-stat"><div class="num">${thisWeek}</div><div class="lbl">Due this week</div></div>
+      <div class="dt-stat"><div class="num">${overdue}</div><div class="lbl">Overdue</div></div>
+    `;
+  }
+
+  function renderList() {
+    const societyFilter = document.getElementById('dt-filter-society').value;
+    const priorityFilter = document.getElementById('dt-filter-priority').value;
+    const statusFilter = document.getElementById('dt-filter-status').value;
+
+    let filtered = tasks.filter(t => {
+      if (societyFilter && t.society !== societyFilter) return false;
+      if (priorityFilter && (t.priority || 'MED') !== priorityFilter) return false;
+      if (statusFilter === 'pending' && t.done) return false;
+      if (statusFilter === 'done' && !t.done) return false;
+      return true;
+    });
+
+    filtered.sort((a, b) => {
+      if (a.done !== b.done) return a.done ? 1 : -1;
+      const p = PRIORITY_RANK[a.priority || 'MED'] - PRIORITY_RANK[b.priority || 'MED'];
+      if (p !== 0) return p;
+      return taskDateTime(a) - taskDateTime(b);
+    });
+
+    const listEl = document.getElementById('dt-task-list');
+    if (filtered.length === 0) {
+      listEl.innerHTML = '<div class="dt-empty">No tasks yet. Add one on the left.</div>';
+      return;
+    }
+
+    const groups = { 'Overdue': [], 'This week': [], 'Later': [], 'Completed': [] };
+    filtered.forEach(t => {
+      if (t.done) { groups['Completed'].push(t); return; }
+      if (isOverdue(t)) { groups['Overdue'].push(t); return; }
+      const diff = daysUntil(t.deadline);
+      if (diff <= 7) groups['This week'].push(t); else groups['Later'].push(t);
+    });
+
+    let html = '';
+    Object.entries(groups).forEach(([label, items]) => {
+      if (items.length === 0) return;
+      html += `<div class="dt-group-title">${label} (${items.length})</div>`;
+      items.forEach(t => {
+        html += `
+          <div class="dt-task ${urgencyClass(t)} ${t.done ? 'done' : ''}" data-id="${t.id}">
+            <input type="checkbox" class="dt-check" ${t.done ? 'checked' : ''} data-action="toggle" data-id="${t.id}" />
+            <div class="dt-task-body">
+              <div class="dt-task-name">${escapeHtml(t.name)}</div>
+              <div class="dt-task-meta">
+                ${priorityTag(t.priority)}
+                ${repeatTag(t.repeat)}
+                ${t.society ? `<span class="dt-society-tag">${escapeHtml(t.society)}</span>` : ''}
+                <span>${fmtDate(t.deadline, t.time)}</span>
+                <span>${relLabel(t)}</span>
+              </div>
+            </div>
+            <div class="dt-task-actions">
+              <button class="dt-icon-btn" data-action="delete" data-id="${t.id}" title="Delete">&#10005;</button>
+            </div>
+          </div>
+        `;
+      });
+    });
+    listEl.innerHTML = html;
+  }
+
+  function render() { updateSocietyOptions(); renderStats(); renderList(); }
+
+  function buildSyncUrl() {
+    const token = document.getElementById('dt-in-token').value.trim();
+    const url = new URL('/api/calendar.ics', window.location.origin);
+    if (token) url.searchParams.set('token', token);
+    return url.toString();
+  }
+
+  function refreshSyncLink() {
+    const httpsUrl = buildSyncUrl();
+    const webcalUrl = httpsUrl.replace(/^https?:\/\//, 'webcal://');
+    document.getElementById('dt-sync-link').textContent = httpsUrl;
+    document.getElementById('dt-open-calendar').href = webcalUrl;
+    if (localStorage.getItem('dt-cal-token')) {
+      document.getElementById('dt-token-field').style.display = 'block';
+    }
+  }
+
+  // Token field: remember locally so you don't retype it
+  const savedToken = localStorage.getItem('dt-cal-token');
+  if (savedToken) {
+    document.getElementById('dt-in-token').value = savedToken;
+    document.getElementById('dt-token-field').style.display = 'block';
+  }
+  document.getElementById('dt-in-token').addEventListener('input', (e) => {
+    localStorage.setItem('dt-cal-token', e.target.value.trim());
+    refreshSyncLink();
+  });
+  // Always show the token field — harmless if unused
+  document.getElementById('dt-token-field').style.display = 'block';
+
+  document.getElementById('dt-copy-link').addEventListener('click', () => {
+    navigator.clipboard.writeText(buildSyncUrl()).then(() => setStatus('Link copied.'));
+    setTimeout(() => setStatus(''), 1500);
+  });
+
+  document.getElementById('dt-in-repeat').addEventListener('change', (e) => {
+    document.getElementById('dt-repeat-extra').style.display = e.target.value ? 'flex' : 'none';
+  });
+
+  document.getElementById('dt-add-btn').addEventListener('click', async () => {
+    const name = document.getElementById('dt-in-name').value.trim();
+    const society = document.getElementById('dt-in-society').value.trim();
+    const deadline = document.getElementById('dt-in-deadline').value;
+    const time = document.getElementById('dt-in-time').value;
+    const priority = document.getElementById('dt-in-priority').value || 'MED';
+    const repeatFreq = document.getElementById('dt-in-repeat').value;
+    const interval = parseInt(document.getElementById('dt-in-interval').value, 10) || 1;
+    const until = document.getElementById('dt-in-until').value || null;
+    if (!name || !deadline) return;
+
+    const repeat = repeatFreq ? { freq: repeatFreq, interval, until } : null;
+    tasks.push({ id: uid(), name, society, deadline, time, priority, repeat, done: false, completedDates: [] });
+
+    ['dt-in-name','dt-in-society','dt-in-deadline','dt-in-time','dt-in-until'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('dt-in-priority').value = 'MED';
+    document.getElementById('dt-in-repeat').value = '';
+    document.getElementById('dt-in-interval').value = '1';
+    document.getElementById('dt-repeat-extra').style.display = 'none';
+
+    await saveTasks();
+    render();
+  });
+
+  document.getElementById('dt-task-list').addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const id = btn.getAttribute('data-id');
+    const action = btn.getAttribute('data-action');
+    const task = tasks.find(t => t.id === id);
+    if (!task) return;
+
+    if (action === 'toggle') {
+      task.done = btn.checked;
+      await saveTasks();
+      render();
+    } else if (action === 'delete') {
+      tasks = tasks.filter(t => t.id !== id);
+      await saveTasks();
+      render();
+    }
+  });
+
+  document.getElementById('dt-filter-society').addEventListener('change', renderList);
+  document.getElementById('dt-filter-priority').addEventListener('change', renderList);
+  document.getElementById('dt-filter-status').addEventListener('change', renderList);
+
+  refreshSyncLink();
+  loadTasks();
+})();
+</script>
+</body>
+</html>
